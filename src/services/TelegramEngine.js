@@ -731,6 +731,86 @@ class TelegramEngine {
     }
 
     /**
+     * Get footer message with platform promo link
+     * The @ link is editable via admin settings
+     */
+    async getFooterMessage() {
+        try {
+            const { Setting } = require('../models');
+            const settings = await Setting.findAll();
+            const settingsObj = {};
+            settings.forEach(s => { settingsObj[s.key] = s.value; });
+
+            // Default to @BoyzVip if not set
+            const platformChannel = settingsObj.platformChannelUsername || '@BoyzVip';
+
+            return `\n\n─────────────────\n🔥 Este bot foi criado por ${platformChannel}`;
+        } catch (error) {
+            return '\n\n─────────────────\n🔥 Este bot foi criado por @BoyzVip';
+        }
+    }
+
+    /**
+     * Append footer to a message (for daily rotation)
+     * @param {string} message - Original message
+     * @param {boolean} includeFooter - Whether to include footer
+     */
+    async appendFooter(message, includeFooter = false) {
+        if (!includeFooter) return message;
+        const footer = await this.getFooterMessage();
+        return message + footer;
+    }
+
+    /**
+     * Send daily promo message to all active users
+     * Called by cron job once per day
+     */
+    async sendDailyPromoToAllBots() {
+        try {
+            console.log('[TelegramEngine] Sending daily promo to all bots...');
+
+            const footer = await this.getFooterMessage();
+
+            // Get all active subscriptions with their bot info
+            const activeSubscriptions = await Subscription.findAll({
+                where: { status: 'active' },
+                include: [{
+                    association: 'plan',
+                    include: [{ association: 'bot', where: { status: 'active' } }]
+                }]
+            });
+
+            // Group by user telegram ID to send only once per user per day
+            const sentToUsers = new Set();
+
+            for (const subscription of activeSubscriptions) {
+                if (!subscription.plan?.bot) continue;
+
+                const userKey = `${subscription.user_telegram_id}_${subscription.plan.bot.id}`;
+                if (sentToUsers.has(userKey)) continue;
+                sentToUsers.add(userKey);
+
+                const telegrafBot = this.bots.get(subscription.plan.bot.id);
+                if (!telegrafBot) continue;
+
+                try {
+                    await telegrafBot.telegram.sendMessage(
+                        subscription.user_telegram_id,
+                        footer.trim(),
+                        { parse_mode: 'Markdown', disable_notification: true }
+                    );
+                } catch (sendError) {
+                    // User may have blocked the bot, ignore
+                }
+            }
+
+            console.log(`[TelegramEngine] Daily promo sent to ${sentToUsers.size} users`);
+        } catch (error) {
+            console.error('[TelegramEngine] Error sending daily promo:', error);
+        }
+    }
+
+    /**
      * Stop all bots
      */
     async shutdown() {

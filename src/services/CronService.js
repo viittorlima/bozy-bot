@@ -18,7 +18,7 @@ class CronService {
     init() {
         console.log('[CronService] Initializing scheduled tasks...');
 
-        // Run every hour at minute 0
+        // Run every hour at minute 0 - check expired subscriptions
         const expirationJob = cron.schedule('0 * * * *', () => {
             this.processExpiredSubscriptions();
         }, {
@@ -28,10 +28,32 @@ class CronService {
 
         this.jobs.push(expirationJob);
 
+        // Daily promo message at 12:00 noon
+        const dailyPromoJob = cron.schedule('0 12 * * *', async () => {
+            await TelegramEngine.sendDailyPromoToAllBots();
+        }, {
+            scheduled: true,
+            timezone: 'America/Sao_Paulo'
+        });
+
+        this.jobs.push(dailyPromoJob);
+
+        // Monthly promotion counter reset at midnight on 1st day
+        const monthlyResetJob = cron.schedule('0 0 1 * *', async () => {
+            await this.resetMonthlyPromotions();
+        }, {
+            scheduled: true,
+            timezone: 'America/Sao_Paulo'
+        });
+
+        this.jobs.push(monthlyResetJob);
+
         // Also run immediately on startup
         this.processExpiredSubscriptions();
 
         console.log('[CronService] ✅ Expiration check scheduled (every hour)');
+        console.log('[CronService] ✅ Daily promo scheduled (12:00 noon)');
+        console.log('[CronService] ✅ Monthly promotion reset scheduled (1st of month)');
     }
 
     /**
@@ -149,6 +171,40 @@ class CronService {
             console.log(`[CronService] Sent ${expiringSubscriptions.length} expiration reminders`);
         } catch (error) {
             console.error('[CronService] Error in sendExpirationReminders:', error);
+        }
+    }
+
+    /**
+     * Reset monthly promotion counters for all users
+     * Run at midnight on 1st of each month
+     */
+    async resetMonthlyPromotions() {
+        console.log('[CronService] Resetting monthly promotion counters...');
+
+        try {
+            const { User } = require('../models');
+
+            const nextMonth = new Date();
+            nextMonth.setMonth(nextMonth.getMonth() + 1);
+            nextMonth.setDate(1);
+            nextMonth.setHours(0, 0, 0, 0);
+
+            // Reset all creators' promotion counters
+            const [updated] = await User.update(
+                {
+                    promotions_used_this_month: 0,
+                    promotions_reset_at: nextMonth
+                },
+                {
+                    where: {
+                        promotion_active: true
+                    }
+                }
+            );
+
+            console.log(`[CronService] Reset ${updated} creators' promotion counters`);
+        } catch (error) {
+            console.error('[CronService] Error resetting promotions:', error);
         }
     }
 
