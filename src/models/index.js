@@ -4,6 +4,7 @@ const Bot = require('./Bot');
 const Plan = require('./Plan');
 const Subscription = require('./Subscription');
 const Transaction = require('./Transaction');
+const Setting = require('./Setting');
 
 // Define Associations
 
@@ -41,5 +42,7 @@ module.exports = {
     Plan,
     Subscription,
     Transaction,
+    Setting,
     syncDatabase
 };
+

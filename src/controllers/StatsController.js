@@ -157,6 +157,17 @@ class StatsController {
                 where: { status: 'active' }
             });
 
+            // New subscribers this month
+            const startOfMonth = new Date();
+            startOfMonth.setDate(1);
+            startOfMonth.setHours(0, 0, 0, 0);
+
+            const newSubscribersMonth = await Subscription.count({
+                where: {
+                    created_at: { [Op.gte]: startOfMonth }
+                }
+            });
+
             // Total revenue (all platform)
             const totalRevenue = await Transaction.sum('amount_gross', {
                 where: { status: 'confirmed' }
@@ -168,7 +179,6 @@ class StatsController {
             }) || 0;
 
             // Total pending payouts (creator net amounts)
-            // In a real system, you'd track actual payout status
             const pendingPayouts = await Transaction.sum('amount_net_creator', {
                 where: { status: 'confirmed' }
             }) || 0;
@@ -194,15 +204,16 @@ class StatsController {
                 totalCreators,
                 activeCreators,
                 totalSubscribers,
-                totalRevenue: `R$ ${totalRevenue.toFixed(2).replace('.', ',')}`,
-                totalCommission: `R$ ${totalCommission.toFixed(2).replace('.', ',')}`,
-                pendingPayouts: `R$ ${pendingPayouts.toFixed(2).replace('.', ',')}`,
+                newSubscribersMonth,
+                totalRevenue,
+                totalCommission,
+                pendingPayouts,
                 recentTransactions: recentTransactions.map(t => ({
                     id: t.id,
                     creator: t.subscription?.plan?.bot?.owner?.name || 'N/A',
                     customer: t.subscription?.user_name || 'Anônimo',
-                    amount: `R$ ${parseFloat(t.amount_gross).toFixed(2).replace('.', ',')}`,
-                    commission: `R$ ${parseFloat(t.amount_platform_fee).toFixed(2).replace('.', ',')}`,
+                    amount: parseFloat(t.amount_gross),
+                    commission: parseFloat(t.amount_platform_fee),
                     paidAt: t.paid_at
                 }))
             });

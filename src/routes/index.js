@@ -193,4 +193,93 @@ router.post('/admin/creators/:userId/ban', authMiddleware, adminMiddleware, asyn
     res.json({ message: 'Usuário banido', user: user.toJSON() });
 });
 
+// Admin: Toggle creator status (ban/unban)
+router.post('/admin/creators/:userId/toggle-status', authMiddleware, adminMiddleware, async (req, res) => {
+    const { User } = require('../models');
+
+    const user = await User.findByPk(req.params.userId);
+    if (!user) {
+        return res.status(404).json({ error: 'Usuário não encontrado' });
+    }
+
+    const newStatus = user.status === 'banned' ? 'active' : 'banned';
+    await user.update({ status: newStatus });
+    res.json({ message: `Usuário ${newStatus}`, user: user.toJSON() });
+});
+
+// Admin: Create new creator
+router.post('/admin/creators', authMiddleware, adminMiddleware, async (req, res) => {
+    const { User } = require('../models');
+    const bcrypt = require('bcryptjs');
+
+    const { name, email, password } = req.body;
+
+    if (!name || !email || !password) {
+        return res.status(400).json({ error: 'Nome, email e senha são obrigatórios' });
+    }
+
+    // Check if email exists
+    const existing = await User.findOne({ where: { email } });
+    if (existing) {
+        return res.status(400).json({ error: 'Email já cadastrado' });
+    }
+
+    // Create user
+    const hashedPassword = await bcrypt.hash(password, 10);
+    const user = await User.create({
+        name,
+        email,
+        password: hashedPassword,
+        role: 'creator',
+        status: 'active'
+    });
+
+    res.status(201).json({ message: 'Criador criado', user: user.toJSON() });
+});
+
+// Admin: Get platform settings
+router.get('/admin/settings', authMiddleware, adminMiddleware, async (req, res) => {
+    const { Setting } = require('../models');
+
+    try {
+        const settings = await Setting.findAll();
+        const settingsObj = {};
+        settings.forEach(s => {
+            settingsObj[s.key] = s.value;
+        });
+
+        res.json({
+            platformFee: parseFloat(settingsObj.platformFee || '10'),
+            gateway: settingsObj.gateway || 'asaas',
+            walletId: settingsObj.walletId || ''
+        });
+    } catch (error) {
+        // Settings table might not exist yet
+        res.json({
+            platformFee: 10,
+            gateway: 'asaas',
+            walletId: ''
+        });
+    }
+});
+
+// Admin: Update platform settings
+router.put('/admin/settings', authMiddleware, adminMiddleware, async (req, res) => {
+    const { Setting } = require('../models');
+
+    const { platformFee, gateway, walletId } = req.body;
+
+    try {
+        // Upsert settings
+        await Setting.upsert({ key: 'platformFee', value: String(platformFee) });
+        await Setting.upsert({ key: 'gateway', value: gateway });
+        await Setting.upsert({ key: 'walletId', value: walletId });
+
+        res.json({ message: 'Configurações salvas' });
+    } catch (error) {
+        console.error('Error saving settings:', error);
+        res.status(500).json({ error: 'Erro ao salvar configurações' });
+    }
+});
+
 module.exports = router;
