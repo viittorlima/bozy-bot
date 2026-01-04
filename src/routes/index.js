@@ -26,6 +26,28 @@ router.get('/checkout/status/:subscriptionId', CheckoutController.checkStatus);
 // Plans (public - for viewing on creator profile)
 router.get('/plans/:id', PlanController.get);
 
+// Public settings (for landing page)
+router.get('/public/settings', async (req, res) => {
+    try {
+        const { Setting } = require('../models');
+        const config = require('../config');
+
+        const settings = await Setting.findAll();
+        const settingsObj = {};
+        settings.forEach(s => {
+            settingsObj[s.key] = s.value;
+        });
+
+        res.json({
+            platformFee: parseFloat(settingsObj.platformFee) || config.platformFeePercent || 10,
+            siteName: settingsObj.siteName || 'Boyz Vip'
+        });
+    } catch (error) {
+        console.error('Error fetching public settings:', error);
+        res.json({ platformFee: 10, siteName: 'Boyz Vip' });
+    }
+});
+
 // Public: Get creator profile with bots list
 router.get('/plans/public/:username', async (req, res) => {
     try {
