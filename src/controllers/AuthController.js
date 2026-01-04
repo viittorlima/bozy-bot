@@ -416,6 +416,75 @@ class AuthController {
             res.status(500).json({ error: 'Erro ao buscar status' });
         }
     }
+
+    /**
+     * PUT /api/auth/profile
+     * Update user profile (name, email)
+     */
+    async updateProfile(req, res) {
+        try {
+            const { name, email } = req.body;
+
+            const user = await User.findByPk(req.userId);
+            if (!user) {
+                return res.status(404).json({ error: 'Usuário não encontrado' });
+            }
+
+            // Check if new email already exists
+            if (email && email !== user.email) {
+                const existing = await User.findOne({ where: { email } });
+                if (existing) {
+                    return res.status(400).json({ error: 'Este email já está em uso' });
+                }
+            }
+
+            await user.update({
+                name: name || user.name,
+                email: email || user.email
+            });
+
+            res.json({
+                message: 'Perfil atualizado com sucesso',
+                user: user.toJSON()
+            });
+        } catch (error) {
+            console.error('[AuthController] Update profile error:', error);
+            res.status(500).json({ error: 'Erro ao atualizar perfil' });
+        }
+    }
+
+    /**
+     * PUT /api/auth/password
+     * Change password
+     */
+    async changePassword(req, res) {
+        try {
+            const { currentPassword, newPassword } = req.body;
+
+            if (!newPassword || newPassword.length < 6) {
+                return res.status(400).json({ error: 'Nova senha deve ter pelo menos 6 caracteres' });
+            }
+
+            const user = await User.findByPk(req.userId);
+            if (!user) {
+                return res.status(404).json({ error: 'Usuário não encontrado' });
+            }
+
+            // Validate current password
+            const isValid = await user.validatePassword(currentPassword);
+            if (!isValid) {
+                return res.status(401).json({ error: 'Senha atual incorreta' });
+            }
+
+            // Update password (hook will hash it)
+            await user.update({ password_hash: newPassword });
+
+            res.json({ message: 'Senha alterada com sucesso' });
+        } catch (error) {
+            console.error('[AuthController] Change password error:', error);
+            res.status(500).json({ error: 'Erro ao alterar senha' });
+        }
+    }
 }
 
 module.exports = new AuthController();

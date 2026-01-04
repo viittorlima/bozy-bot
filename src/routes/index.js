@@ -158,6 +158,10 @@ router.post('/auth/activate-promotion', authMiddleware, AuthController.activateP
 router.post('/auth/deactivate-promotion', authMiddleware, AuthController.deactivatePromotion);
 router.post('/auth/submit-promotion', authMiddleware, AuthController.submitPromotion);
 
+// Profile & Password
+router.put('/auth/profile', authMiddleware, AuthController.updateProfile);
+router.put('/auth/password', authMiddleware, AuthController.changePassword);
+
 // Stats
 router.get('/stats', authMiddleware, StatsController.getCreatorStats);
 
