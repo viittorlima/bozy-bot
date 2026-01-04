@@ -70,8 +70,12 @@ async function start() {
         // Test database connection
         await testConnection();
 
-        // Sync models (create tables if they don't exist)
-        await syncDatabase();
+        // Sync models with FORCE (drops and recreates tables)
+        // WARNING: This will delete all data! Only use in development or initial setup
+        await syncDatabase(true);
+
+        // Create default admin user
+        await createDefaultAdmin();
 
         // Initialize Telegram bots
         await TelegramEngine.initialize();
@@ -90,6 +94,30 @@ async function start() {
     } catch (error) {
         console.error('❌ Failed to start server:', error);
         process.exit(1);
+    }
+}
+
+// Create default admin user
+async function createDefaultAdmin() {
+    try {
+        const { User } = require('./models');
+
+        const adminExists = await User.findOne({ where: { email: 'admin@admin.com' } });
+        if (!adminExists) {
+            await User.create({
+                name: 'Admin',
+                email: 'admin@admin.com',
+                username: 'admin',
+                password_hash: 'admin123',
+                role: 'admin',
+                status: 'active'
+            });
+            console.log('✅ Admin created: admin@admin.com / admin123');
+        } else {
+            console.log('⏭️  Admin already exists');
+        }
+    } catch (error) {
+        console.error('❌ Error creating admin:', error);
     }
 }
 
