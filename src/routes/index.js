@@ -48,6 +48,26 @@ router.get('/public/settings', async (req, res) => {
     }
 });
 
+// Public legal content (for terms page)
+router.get('/public/legal', async (req, res) => {
+    try {
+        const { Setting } = require('../models');
+
+        const termsOfUse = await Setting.findOne({ where: { key: 'termsOfUse' } });
+        const privacyPolicy = await Setting.findOne({ where: { key: 'privacyPolicy' } });
+        const disclaimer = await Setting.findOne({ where: { key: 'disclaimer' } });
+
+        res.json({
+            termsOfUse: termsOfUse?.value || '',
+            privacyPolicy: privacyPolicy?.value || '',
+            disclaimer: disclaimer?.value || ''
+        });
+    } catch (error) {
+        console.error('Error fetching legal content:', error);
+        res.json({ termsOfUse: '', privacyPolicy: '', disclaimer: '' });
+    }
+});
+
 // Public: Get creator profile with bots list
 router.get('/plans/public/:username', async (req, res) => {
     try {
@@ -333,13 +353,26 @@ router.get('/admin/settings', authMiddleware, adminMiddleware, async (req, res) 
 router.put('/admin/settings', authMiddleware, adminMiddleware, async (req, res) => {
     const { Setting } = require('../models');
 
-    const { platformFee, gateway, walletId } = req.body;
+    const {
+        siteName, siteUrl, supportEmail, platformChannelUsername,
+        promotionContactLink, supportTelegramLink, enableRegistration,
+        requireEmailVerification, maintenanceMode, platformFee, gateway, walletId
+    } = req.body;
 
     try {
-        // Upsert settings
-        await Setting.upsert({ key: 'platformFee', value: String(platformFee) });
-        await Setting.upsert({ key: 'gateway', value: gateway });
-        await Setting.upsert({ key: 'walletId', value: walletId });
+        // Upsert all settings
+        if (siteName !== undefined) await Setting.upsert({ key: 'siteName', value: siteName });
+        if (siteUrl !== undefined) await Setting.upsert({ key: 'siteUrl', value: siteUrl });
+        if (supportEmail !== undefined) await Setting.upsert({ key: 'supportEmail', value: supportEmail });
+        if (platformChannelUsername !== undefined) await Setting.upsert({ key: 'platformChannelUsername', value: platformChannelUsername });
+        if (promotionContactLink !== undefined) await Setting.upsert({ key: 'promotionContactLink', value: promotionContactLink });
+        if (supportTelegramLink !== undefined) await Setting.upsert({ key: 'supportTelegramLink', value: supportTelegramLink });
+        if (enableRegistration !== undefined) await Setting.upsert({ key: 'enableRegistration', value: String(enableRegistration) });
+        if (requireEmailVerification !== undefined) await Setting.upsert({ key: 'requireEmailVerification', value: String(requireEmailVerification) });
+        if (maintenanceMode !== undefined) await Setting.upsert({ key: 'maintenanceMode', value: String(maintenanceMode) });
+        if (platformFee !== undefined) await Setting.upsert({ key: 'platformFee', value: String(platformFee) });
+        if (gateway !== undefined) await Setting.upsert({ key: 'gateway', value: gateway });
+        if (walletId !== undefined) await Setting.upsert({ key: 'walletId', value: walletId });
 
         res.json({ message: 'Configurações salvas' });
     } catch (error) {
@@ -348,4 +381,42 @@ router.put('/admin/settings', authMiddleware, adminMiddleware, async (req, res) 
     }
 });
 
+// Admin: Get legal content
+router.get('/admin/legal', authMiddleware, adminMiddleware, async (req, res) => {
+    const { Setting } = require('../models');
+
+    try {
+        const termsOfUse = await Setting.findOne({ where: { key: 'termsOfUse' } });
+        const privacyPolicy = await Setting.findOne({ where: { key: 'privacyPolicy' } });
+        const disclaimer = await Setting.findOne({ where: { key: 'disclaimer' } });
+
+        res.json({
+            termsOfUse: termsOfUse?.value || '',
+            privacyPolicy: privacyPolicy?.value || '',
+            disclaimer: disclaimer?.value || ''
+        });
+    } catch (error) {
+        console.error('Error loading legal:', error);
+        res.status(500).json({ error: 'Erro ao carregar' });
+    }
+});
+
+// Admin: Update legal content
+router.put('/admin/legal', authMiddleware, adminMiddleware, async (req, res) => {
+    const { Setting } = require('../models');
+    const { termsOfUse, privacyPolicy, disclaimer } = req.body;
+
+    try {
+        if (termsOfUse !== undefined) await Setting.upsert({ key: 'termsOfUse', value: termsOfUse });
+        if (privacyPolicy !== undefined) await Setting.upsert({ key: 'privacyPolicy', value: privacyPolicy });
+        if (disclaimer !== undefined) await Setting.upsert({ key: 'disclaimer', value: disclaimer });
+
+        res.json({ message: 'Textos legais salvos' });
+    } catch (error) {
+        console.error('Error saving legal:', error);
+        res.status(500).json({ error: 'Erro ao salvar' });
+    }
+});
+
 module.exports = router;
+
