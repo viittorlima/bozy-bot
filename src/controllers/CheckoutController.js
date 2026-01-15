@@ -17,7 +17,7 @@ class CheckoutController {
      */
     async generateLink(req, res) {
         try {
-            const { planId, telegramId, telegramUsername, email, name, botId, amount, description } = req.body;
+            const { planId, telegramId, telegramUsername, email, name, botId, amount, description, paymentMethod } = req.body;
 
             let plan, creator;
 
@@ -98,6 +98,14 @@ class CheckoutController {
             // Webhook URL
             const webhookUrl = `${config.urls.api}/api/webhooks/${gateway.toLowerCase()}`;
 
+            // Map paymentMethod (frontend) to billingType (Asaas/Gateway)
+            // Frontend: 'pix' | 'credit_card'
+            // Asaas: 'PIX' | 'CREDIT_CARD' | 'BOLETO'
+            let billingType = 'PIX';
+            if (paymentMethod === 'credit_card') {
+                billingType = 'CREDIT_CARD';
+            }
+
             // Prepare payment data
             const paymentData = {
                 planId: plan.id, // Can be null
@@ -117,6 +125,7 @@ class CheckoutController {
                 dueDate: this.getNextDueDate(),
                 nextDueDate: this.getNextDueDate(),
                 cycle: undefined, // One-time default for offers
+                billingType, // Add billingType
                 // Pass credentials to PaymentService
                 creatorApiToken: typeof creatorApiKey === 'string' && creatorApiKey.startsWith('{')
                     ? JSON.parse(creatorApiKey).api_token // Extract token if JSON (PushinPay)

@@ -22,6 +22,7 @@ router.post('/auth/login', AuthController.login);
 
 // Checkout (public - for end users)
 router.post('/checkout/link', CheckoutController.generateLink);
+router.post('/checkout/create', CheckoutController.generateLink); // Alias for frontend compatibility
 router.get('/checkout/status/:subscriptionId', CheckoutController.checkStatus);
 
 // Plans (public - for viewing on creator profile)
