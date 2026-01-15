@@ -1,45 +1,155 @@
-const { Broadcast, BroadcastItem } = require('../models');
+const { Broadcast, BroadcastItem, Bot, Subscription } = require('../models');
+const TelegramEngine = require('../services/TelegramEngine');
+const { Op } = require('sequelize');
 
 /**
  * Broadcast Controller
- * Manage mass messages
+ * Manage mass messages for Admin and Creators
  */
 class BroadcastController {
     /**
-     * POST /api/broadcasts
-     * Create a new broadcast draft
+     * POST /api/admin/broadcasts
+     * Create and send a broadcast (Admin - all users)
      */
-    async create(req, res) {
+    async createAdminBroadcast(req, res) {
         try {
             const {
-                type, filter_status, filter_behavior, filter_origin,
-                message_text, media_url, button_text, button_url,
-                send_now
+                type, // 'text', 'photo', 'video'
+                filter, // 'all', 'active', 'expired', 'pending'
+                message,
+                media_url,
+                buttons // [{text, url}]
             } = req.body;
 
+            if (!message && !media_url) {
+                return res.status(400).json({ error: 'Mensagem ou mídia é obrigatória' });
+            }
+
+            // Get all bots
+            const bots = await Bot.findAll({ where: { status: 'active' } });
+
+            let totalSent = 0;
+            let totalFailed = 0;
+
+            for (const bot of bots) {
+                // Get subscribers based on filter
+                const subscribers = await TelegramEngine.getBotSubscribers(bot.id, filter || 'all');
+
+                for (const telegramId of subscribers) {
+                    let success = false;
+
+                    if (type === 'photo' && media_url) {
+                        success = await TelegramEngine.sendBroadcastPhoto(bot.id, telegramId, media_url, message, buttons);
+                    } else if (type === 'video' && media_url) {
+                        success = await TelegramEngine.sendBroadcastVideo(bot.id, telegramId, media_url, message, buttons);
+                    } else {
+                        success = await TelegramEngine.sendBroadcastMessage(bot.id, telegramId, message, buttons);
+                    }
+
+                    if (success) totalSent++;
+                    else totalFailed++;
+
+                    // Small delay to avoid rate limiting
+                    await new Promise(r => setTimeout(r, 50));
+                }
+            }
+
+            // Save broadcast record
             const broadcast = await Broadcast.create({
-                type,
-                filter_status,
-                filter_behavior,
-                filter_origin,
-                message_text,
+                type: type || 'text',
+                filter_status: filter || 'all',
+                message_text: message,
                 media_url,
-                button_text,
-                button_url,
-                status: send_now ? 'queued' : 'draft',
-                scheduled_at: send_now ? new Date() : null
+                button_text: buttons?.[0]?.text,
+                button_url: buttons?.[0]?.url,
+                status: 'completed',
+                sent_at: new Date(),
+                total_sent: totalSent,
+                total_failed: totalFailed
             });
 
-            res.status(201).json({ message: 'Broadcast criado', broadcast });
+            res.json({
+                message: 'Broadcast enviado',
+                stats: { sent: totalSent, failed: totalFailed },
+                broadcast
+            });
         } catch (error) {
-            console.error('[BroadcastController] Create error:', error);
-            res.status(500).json({ error: 'Erro ao criar broadcast' });
+            console.error('[BroadcastController] Admin broadcast error:', error);
+            res.status(500).json({ error: 'Erro ao enviar broadcast' });
         }
     }
 
     /**
-     * GET /api/broadcasts
-     * List broadcasts
+     * POST /api/creator/broadcasts
+     * Create and send a broadcast (Creator - their bots only)
+     */
+    async createCreatorBroadcast(req, res) {
+        try {
+            const creatorId = req.user.id;
+            const {
+                bot_id, // specific bot or 'all'
+                type, // 'text', 'photo', 'video'
+                filter, // 'all', 'active', 'expired'
+                message,
+                media_url,
+                buttons // [{text, url}]
+            } = req.body;
+
+            if (!message && !media_url) {
+                return res.status(400).json({ error: 'Mensagem ou mídia é obrigatória' });
+            }
+
+            // Get creator's bots
+            let whereClause = { creator_id: creatorId, status: 'active' };
+            if (bot_id && bot_id !== 'all') {
+                whereClause.id = bot_id;
+            }
+
+            const bots = await Bot.findAll({ where: whereClause });
+
+            if (bots.length === 0) {
+                return res.status(404).json({ error: 'Nenhum bot encontrado' });
+            }
+
+            let totalSent = 0;
+            let totalFailed = 0;
+
+            for (const bot of bots) {
+                // Get subscribers based on filter
+                const subscribers = await TelegramEngine.getBotSubscribers(bot.id, filter || 'all');
+
+                for (const telegramId of subscribers) {
+                    let success = false;
+
+                    if (type === 'photo' && media_url) {
+                        success = await TelegramEngine.sendBroadcastPhoto(bot.id, telegramId, media_url, message, buttons);
+                    } else if (type === 'video' && media_url) {
+                        success = await TelegramEngine.sendBroadcastVideo(bot.id, telegramId, media_url, message, buttons);
+                    } else {
+                        success = await TelegramEngine.sendBroadcastMessage(bot.id, telegramId, message, buttons);
+                    }
+
+                    if (success) totalSent++;
+                    else totalFailed++;
+
+                    // Small delay to avoid rate limiting
+                    await new Promise(r => setTimeout(r, 50));
+                }
+            }
+
+            res.json({
+                message: 'Broadcast enviado',
+                stats: { sent: totalSent, failed: totalFailed }
+            });
+        } catch (error) {
+            console.error('[BroadcastController] Creator broadcast error:', error);
+            res.status(500).json({ error: 'Erro ao enviar broadcast' });
+        }
+    }
+
+    /**
+     * GET /api/admin/broadcasts
+     * List broadcasts (Admin)
      */
     async list(req, res) {
         try {
@@ -55,34 +165,7 @@ class BroadcastController {
     }
 
     /**
-     * POST /api/broadcasts/:id/send
-     * Send a draft broadcast
-     */
-    async send(req, res) {
-        try {
-            const broadcast = await Broadcast.findByPk(req.params.id);
-            if (!broadcast) {
-                return res.status(404).json({ error: 'Broadcast não encontrado' });
-            }
-
-            if (broadcast.status !== 'draft') {
-                return res.status(400).json({ error: 'Apenas rascunhos podem ser enviados' });
-            }
-
-            await broadcast.update({
-                status: 'queued',
-                scheduled_at: new Date()
-            });
-
-            res.json({ message: 'Broadcast agendado para envio', broadcast });
-        } catch (error) {
-            console.error('[BroadcastController] Send error:', error);
-            res.status(500).json({ error: 'Erro ao enviar broadcast' });
-        }
-    }
-
-    /**
-     * DELETE /api/broadcasts/:id
+     * DELETE /api/admin/broadcasts/:id
      * Delete a broadcast
      */
     async delete(req, res) {

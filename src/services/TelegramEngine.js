@@ -729,6 +729,137 @@ class TelegramEngine {
     }
 
     /**
+     * Send broadcast message to user (for mailing feature)
+     * @param {number} botId - Bot ID
+     * @param {string} telegramId - User's Telegram ID
+     * @param {string} message - Text message
+     * @param {Array} buttons - Optional buttons [{text, url}]
+     */
+    async sendBroadcastMessage(botId, telegramId, message, buttons = []) {
+        try {
+            const telegrafBot = this.bots.get(botId);
+            if (!telegrafBot) {
+                console.log(`[TelegramEngine] Bot ${botId} not found for broadcast`);
+                return false;
+            }
+
+            const options = { parse_mode: 'Markdown', protect_content: true };
+
+            if (buttons && buttons.length > 0) {
+                const inlineButtons = buttons.map(btn => [{ text: btn.text, url: btn.url }]);
+                options.reply_markup = { inline_keyboard: inlineButtons };
+            }
+
+            await telegrafBot.telegram.sendMessage(telegramId, message, options);
+            return true;
+        } catch (error) {
+            console.error(`[TelegramEngine] Error sending broadcast message:`, error.message);
+            return false;
+        }
+    }
+
+    /**
+     * Send broadcast photo to user (for mailing feature)
+     * @param {number} botId - Bot ID
+     * @param {string} telegramId - User's Telegram ID
+     * @param {string} photoUrl - Photo URL or file_id
+     * @param {string} caption - Optional caption
+     * @param {Array} buttons - Optional buttons [{text, url}]
+     */
+    async sendBroadcastPhoto(botId, telegramId, photoUrl, caption = '', buttons = []) {
+        try {
+            const telegrafBot = this.bots.get(botId);
+            if (!telegrafBot) {
+                console.log(`[TelegramEngine] Bot ${botId} not found for photo broadcast`);
+                return false;
+            }
+
+            const options = {
+                caption,
+                parse_mode: 'Markdown',
+                protect_content: true
+            };
+
+            if (buttons && buttons.length > 0) {
+                const inlineButtons = buttons.map(btn => [{ text: btn.text, url: btn.url }]);
+                options.reply_markup = { inline_keyboard: inlineButtons };
+            }
+
+            await telegrafBot.telegram.sendPhoto(telegramId, photoUrl, options);
+            return true;
+        } catch (error) {
+            console.error(`[TelegramEngine] Error sending broadcast photo:`, error.message);
+            return false;
+        }
+    }
+
+    /**
+     * Send broadcast video to user (for mailing feature)
+     * @param {number} botId - Bot ID
+     * @param {string} telegramId - User's Telegram ID
+     * @param {string} videoUrl - Video URL or file_id
+     * @param {string} caption - Optional caption
+     * @param {Array} buttons - Optional buttons [{text, url}]
+     */
+    async sendBroadcastVideo(botId, telegramId, videoUrl, caption = '', buttons = []) {
+        try {
+            const telegrafBot = this.bots.get(botId);
+            if (!telegrafBot) {
+                console.log(`[TelegramEngine] Bot ${botId} not found for video broadcast`);
+                return false;
+            }
+
+            const options = {
+                caption,
+                parse_mode: 'Markdown',
+                protect_content: true
+            };
+
+            if (buttons && buttons.length > 0) {
+                const inlineButtons = buttons.map(btn => [{ text: btn.text, url: btn.url }]);
+                options.reply_markup = { inline_keyboard: inlineButtons };
+            }
+
+            await telegrafBot.telegram.sendVideo(telegramId, videoUrl, options);
+            return true;
+        } catch (error) {
+            console.error(`[TelegramEngine] Error sending broadcast video:`, error.message);
+            return false;
+        }
+    }
+
+    /**
+     * Get all subscribers for a bot (for mailing)
+     * @param {number} botId - Bot ID
+     * @param {string} filter - Filter: 'all', 'active', 'expired', 'pending'
+     */
+    async getBotSubscribers(botId, filter = 'all') {
+        try {
+            const whereClause = { bot_id: botId };
+
+            if (filter === 'active') {
+                whereClause.status = 'active';
+                whereClause.expires_at = { [Op.or]: [{ [Op.gt]: new Date() }, null] };
+            } else if (filter === 'expired') {
+                whereClause.status = 'expired';
+            } else if (filter === 'pending') {
+                whereClause.status = 'pending';
+            }
+
+            const subscriptions = await Subscription.findAll({
+                where: whereClause,
+                attributes: ['user_telegram_id'],
+                group: ['user_telegram_id']
+            });
+
+            return subscriptions.map(s => s.user_telegram_id);
+        } catch (error) {
+            console.error('[TelegramEngine] Error getting subscribers:', error);
+            return [];
+        }
+    }
+
+    /**
      * Stop a bot
      */
     async stopBot(botId) {

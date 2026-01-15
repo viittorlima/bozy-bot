@@ -441,10 +441,12 @@ router.put('/admin/legal', authMiddleware, adminMiddleware, async (req, res) => 
 });
 
 // Admin: Broadcasts (Mailing)
-router.post('/admin/broadcasts', authMiddleware, adminMiddleware, BroadcastController.create);
+router.post('/admin/broadcasts', authMiddleware, adminMiddleware, BroadcastController.createAdminBroadcast);
 router.get('/admin/broadcasts', authMiddleware, adminMiddleware, BroadcastController.list);
-router.post('/admin/broadcasts/:id/send', authMiddleware, adminMiddleware, BroadcastController.send);
 router.delete('/admin/broadcasts/:id', authMiddleware, adminMiddleware, BroadcastController.delete);
+
+// Creator: Broadcasts (Mailing para criadores)
+router.post('/creator/broadcasts', authMiddleware, BroadcastController.createCreatorBroadcast);
 
 module.exports = router;
 
