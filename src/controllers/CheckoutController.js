@@ -116,7 +116,14 @@ class CheckoutController {
                 cancelUrl: `${config.urls.frontend}/cancel`,
                 dueDate: this.getNextDueDate(),
                 nextDueDate: this.getNextDueDate(),
-                cycle: undefined // One-time default for offers
+                cycle: undefined, // One-time default for offers
+                // Pass credentials to PaymentService
+                creatorApiToken: typeof creatorApiKey === 'string' && creatorApiKey.startsWith('{')
+                    ? JSON.parse(creatorApiKey).api_token // Extract token if JSON (PushinPay)
+                    : creatorApiKey,
+                gatewayCredentials: typeof creatorApiKey === 'string' && creatorApiKey.startsWith('{')
+                    ? JSON.parse(creatorApiKey)
+                    : creatorApiKey
             };
 
             // Create payment using creator's credentials

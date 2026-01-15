@@ -133,7 +133,7 @@ class AuthController {
 
             await user.update({
                 gateway_preference: gateway,
-                gateway_api_token: apiToken
+                gateway_api_token: typeof apiToken === 'object' ? JSON.stringify(apiToken) : apiToken
             });
 
             res.json({
