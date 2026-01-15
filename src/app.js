@@ -71,9 +71,9 @@ async function start() {
         // Test database connection
         await testConnection();
 
-        // Sync models with FORCE (drops and recreates tables)
-        // WARNING: This will delete all data! Only use in development or initial setup
-        await syncDatabase(true);
+        // Sync models (alter mode - preserves data)
+        // Use syncDatabase(true) only for initial setup or schema changes
+        await syncDatabase(false);
 
         // Create default admin user
         await createDefaultAdmin();
