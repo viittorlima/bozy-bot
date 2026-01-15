@@ -33,8 +33,16 @@ BroadcastItem.belongsTo(Broadcast, { foreignKey: 'broadcast_id', as: 'broadcast'
 
 async function syncDatabase(force = false) {
     try {
-        // Use alter: true to update tables without dropping them
-        await sequelize.sync({ force, alter: !force });
+        await sequelize.sync({ force });
+
+        // Manual schema updates (migrations)
+        try {
+            await sequelize.query('ALTER TABLE bots ADD COLUMN IF NOT EXISTS anti_cloning BOOLEAN DEFAULT true;');
+            console.log('✅ Schema updated: anti_cloning column verified.');
+        } catch (e) {
+            console.log('ℹ️ Schema update note:', e.message);
+        }
+
         console.log('✅ Database synchronized successfully.');
     } catch (error) {
         console.error('❌ Error synchronizing database:', error);
