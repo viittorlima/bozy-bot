@@ -101,7 +101,7 @@ const User = sequelize.define('User', {
         comment: 'ID da wallet para Split (subconta Asaas)'
     },
     gateway_preference: {
-        type: DataTypes.ENUM('asaas', 'mercadopago', 'stripe', 'pushinpay'),
+        type: DataTypes.ENUM('asaas', 'mercadopago', 'stripe', 'pushinpay', 'syncpay', 'paradisepag'),
         defaultValue: 'pushinpay'
     },
     gateway_api_token: {

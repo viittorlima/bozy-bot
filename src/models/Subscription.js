@@ -9,7 +9,7 @@ const Subscription = sequelize.define('Subscription', {
     },
     plan_id: {
         type: DataTypes.UUID,
-        allowNull: false,
+        allowNull: true, // Allow null for custom offers
         references: {
             model: 'plans',
             key: 'id'
@@ -33,7 +33,7 @@ const Subscription = sequelize.define('Subscription', {
         allowNull: true
     },
     gateway: {
-        type: DataTypes.ENUM('asaas', 'mercadopago', 'stripe'),
+        type: DataTypes.ENUM('asaas', 'mercadopago', 'stripe', 'pushinpay', 'syncpay', 'paradisepag'),
         allowNull: false
     },
     gateway_subscription_id: {

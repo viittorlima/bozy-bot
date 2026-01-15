@@ -22,7 +22,12 @@ class BotController {
                 order: [['created_at', 'DESC']]
             });
 
-            res.json({ bots });
+            const user = await User.findByPk(req.userId, { attributes: ['gateway_api_token'] });
+
+            res.json({
+                bots,
+                hasGateway: !!user?.gateway_api_token
+            });
         } catch (error) {
             console.error('[BotController] List error:', error);
             res.status(500).json({ error: 'Erro ao listar bots' });

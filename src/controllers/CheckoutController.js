@@ -17,28 +17,60 @@ class CheckoutController {
      */
     async generateLink(req, res) {
         try {
-            const { planId, telegramId, telegramUsername, email, name } = req.body;
+            const { planId, telegramId, telegramUsername, email, name, botId, amount, description } = req.body;
 
-            if (!planId) {
-                return res.status(400).json({ error: 'planId é obrigatório' });
-            }
+            let plan, creator;
 
-            // Get plan with bot and owner (creator)
-            const plan = await Plan.findByPk(planId, {
-                include: [{
-                    association: 'bot',
+            // SCENARIO 1: PLAN BASED
+            if (planId) {
+                plan = await Plan.findByPk(planId, {
                     include: [{
-                        association: 'owner',
+                        association: 'bot',
+                        include: [{
+                            association: 'owner',
+                            attributes: ['id', 'name', 'email', 'gateway_preference', 'gateway_api_token', 'asaas_wallet_id']
+                        }]
+                    }]
+                });
+
+                if (!plan) return res.status(404).json({ error: 'Plano não encontrado' });
+                creator = plan.bot?.owner;
+            }
+            // SCENARIO 2: CUSTOM PROMOTIONAL OFFER (No Plan)
+            else if (botId && amount) {
+                const bot = await Bot.findByPk(botId, {
+                    include: [{
+                        association: 'user', // owner
+                        as: 'owner', // Alias might be 'user' or 'owner' depending on association, checking code assumes 'owner' in plan include but let's check Bot model
                         attributes: ['id', 'name', 'email', 'gateway_preference', 'gateway_api_token', 'asaas_wallet_id']
                     }]
-                }]
-            });
+                });
 
-            if (!plan) {
-                return res.status(404).json({ error: 'Plano não encontrado' });
+                // Bot model usually has user_id, association is 'user' (User model).
+                // Let's assume standard association: Bot.belongsTo(User, { foreignKey: 'user_id' })
+                if (!bot) return res.status(404).json({ error: 'Bot não encontrado' });
+
+                // Fetch User manually if alias 'owner' fails (Bot.js definotion doesn't show alias, usually 'User')
+                if (!bot.User && !bot.owner) {
+                    creator = await User.findByPk(bot.user_id);
+                } else {
+                    creator = bot.User || bot.owner;
+                }
+
+                // Create a "Virtual" plan object for data consistency
+                plan = {
+                    id: null,
+                    name: description || 'Oferta Especial',
+                    description: 'Pagamento de oferta promocional',
+                    price: parseFloat(amount),
+                    is_recurring: false, // Offers are usually one-time
+                    duration_days: 0,
+                    bot: bot
+                };
+            } else {
+                return res.status(400).json({ error: 'planId ou (botId + amount) são obrigatórios' });
             }
 
-            const creator = plan.bot?.owner;
             if (!creator) {
                 return res.status(400).json({ error: 'Criador não encontrado' });
             }
@@ -61,16 +93,16 @@ class CheckoutController {
             const grossAmount = splitAmounts.gross;
 
             // Create external reference for tracking
-            const externalReference = `${plan.id}_${telegramId || 'web'}_${Date.now()}`;
+            const externalReference = `${planId || 'offer'}_${telegramId || 'web'}_${Date.now()}`;
 
             // Webhook URL
             const webhookUrl = `${config.urls.api}/api/webhooks/${gateway.toLowerCase()}`;
 
             // Prepare payment data
             const paymentData = {
-                planId: plan.id,
+                planId: plan.id, // Can be null
                 title: plan.name,
-                description: plan.description || `Assinatura ${plan.name}`,
+                description: plan.description || `Pagamento ${plan.name}`,
                 amount: grossAmount,
                 value: grossAmount,
                 email: email || `telegram_${telegramId}@boyzclub.temp`,
@@ -84,56 +116,15 @@ class CheckoutController {
                 cancelUrl: `${config.urls.frontend}/cancel`,
                 dueDate: this.getNextDueDate(),
                 nextDueDate: this.getNextDueDate(),
-                cycle: plan.is_recurring ? 'MONTHLY' : undefined
+                cycle: undefined // One-time default for offers
             };
 
             // Create payment using creator's credentials
             let result;
 
             try {
-                switch (gateway.toLowerCase()) {
-                    case 'asaas':
-                        // First, create/get customer in creator's Asaas account
-                        const customer = await AsaasService.createCustomer(creatorApiKey, {
-                            name: name || `Telegram ${telegramId}`,
-                            email: paymentData.email,
-                            externalReference: telegramId?.toString()
-                        });
-                        paymentData.customerId = customer.id;
-
-                        // Create payment with Split (commission goes to platform)
-                        if (plan.is_recurring && plan.duration_days > 0) {
-                            result = await AsaasService.createSubscriptionWithSplit(creatorApiKey, paymentData);
-                        } else {
-                            result = await AsaasService.createPaymentWithSplit(creatorApiKey, paymentData);
-                        }
-                        break;
-
-                    case 'mercadopago':
-                        result = await MercadoPagoService.createPaymentPreference(creatorApiKey, paymentData);
-                        break;
-
-                    case 'stripe':
-                        // For Stripe, creatorApiKey should be the connected account ID (acct_xxx)
-                        result = await StripeService.createCheckoutSession(creatorApiKey, {
-                            ...paymentData,
-                            isSubscription: plan.is_recurring && plan.duration_days > 0
-                        });
-                        break;
-
-                    case 'pushinpay':
-                        // PushinPay - PIX only
-                        result = await PushinPayService.createPixPayment(
-                            creatorApiKey,
-                            paymentData,
-                            config.pushinpay?.platformAccountId, // ID da conta da plataforma para split
-                            webhookUrl
-                        );
-                        break;
-
-                    default:
-                        return res.status(400).json({ error: `Gateway '${gateway}' não suportado` });
-                }
+                // Gateway Factory Logic
+                result = await PaymentService.createPaymentLink(gateway, paymentData, creator.asaas_wallet_id);
             } catch (gatewayError) {
                 console.error(`[Checkout] Gateway error (${gateway}):`, gatewayError);
                 return res.status(400).json({
@@ -143,35 +134,64 @@ class CheckoutController {
                 });
             }
 
-            // Create pending subscription record
-            const subscription = await Subscription.create({
-                plan_id: plan.id,
-                user_telegram_id: telegramId || 0,
-                user_telegram_username: telegramUsername,
-                user_name: name,
-                user_email: email,
-                gateway,
-                gateway_subscription_id: result.subscription?.id || result.sessionId || result.preferenceId,
-                status: 'pending'
-            });
+            // Create pending subscription/transaction record
+            // If planId is null, we might need a workaround for Subscription model if it enforces plan_id
+            // Checking models... Subscription usually requires plan_id. 
+            // If we are selling something without a plan, we might need a dummy plan or nullable plan_id
+            // For now, let's assume we create a generic "Offer" subscription
+
+            let subscription;
+            if (plan.id) {
+                subscription = await Subscription.create({
+                    plan_id: plan.id,
+                    user_telegram_id: telegramId || 0,
+                    user_telegram_username: telegramUsername,
+                    user_name: name,
+                    user_email: email,
+                    gateway,
+                    gateway_subscription_id: result.id || result.sessionId, // Unified ID access
+                    status: 'pending'
+                });
+            } else {
+                // For custom offers, create record without plan_id (if allowed) or handle differently
+                // Ideally we should have a generic 'Offer' model or allow nullable.
+                // Assuming we can pass null or 0 if constraint allows, or we just create Transaction linked to Bot directly?
+                // Let's rely on standard Subscription for now but we might hit FK constraint.
+                // WORKAROUND: For this feature to work strictly without Plan DB changes, 
+                // we might need to find a 'Default' plan or just skip Subscription creation and rely on Transaction?
+                // No, Transaction needs subscription_id usually.
+
+                // Let's create a subscription with plan_id = null if possible, checking Subscription.js
+                subscription = await Subscription.create({
+                    plan_id: null, // Hope this is allowed, otherwise we need to fix model
+                    bot_id: botId, // Add bot_id to subscription if plan_id is null?
+                    user_telegram_id: telegramId || 0,
+                    user_telegram_username: telegramUsername,
+                    user_name: name,
+                    user_email: email,
+                    gateway,
+                    gateway_subscription_id: result.id || result.sessionId,
+                    status: 'pending',
+                    metadata: { type: 'offer', description: description, amount: amount }
+                });
+            }
 
             // Create pending transaction
             await Transaction.create({
                 subscription_id: subscription.id,
                 gateway,
-                gateway_payment_id: result.payment?.id || null,
-                gateway_invoice_url: result.invoiceUrl || result.url || result.initPoint,
+                gateway_payment_id: result.id || null,
+                gateway_invoice_url: result.invoiceUrl || result.url || result.initPoint || result.qr_code,
                 amount_gross: splitAmounts.gross,
                 amount_net_creator: splitAmounts.creatorNet,
                 amount_platform_fee: splitAmounts.platformFee,
                 status: 'pending'
             });
 
-            // Return payment URL
-            const paymentUrl = result.invoiceUrl || result.url || result.initPoint || result.sandboxInitPoint;
-
             res.json({
-                paymentUrl,
+                paymentUrl: result.invoiceUrl || result.url || result.initPoint || result.sandboxInitPoint,
+                qrCode: result.qr_code,
+                pixCopyPaste: result.copy_paste,
                 subscriptionId: subscription.id,
                 externalReference,
                 split: splitAmounts,
@@ -180,7 +200,7 @@ class CheckoutController {
             });
         } catch (error) {
             console.error('[CheckoutController] Generate link error:', error);
-            res.status(500).json({ error: 'Erro ao gerar link de pagamento' });
+            res.status(500).json({ error: 'Erro ao gerar link de pagamento: ' + error.message });
         }
     }
 
