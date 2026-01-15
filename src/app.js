@@ -18,8 +18,10 @@ const app = express();
 // Security middleware
 app.use(helmet());
 app.use(cors({
-    origin: config.urls.frontend,
-    credentials: true
+    origin: '*', // Allow all origins for testing
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization']
 }));
 
 // Stripe webhook needs raw body (before express.json())

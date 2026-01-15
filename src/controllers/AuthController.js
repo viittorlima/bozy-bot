@@ -101,6 +101,7 @@ class AuthController {
     async me(req, res) {
         try {
             const user = await User.findByPk(req.userId, {
+                attributes: { include: ['gateway_preference', 'gateway_api_token'] }, // Ensure these are fetched
                 include: [{
                     association: 'bots',
                     include: ['plans']

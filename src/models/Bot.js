@@ -56,6 +56,11 @@ const Bot = sequelize.define('Bot', {
     webhook_set: {
         type: DataTypes.BOOLEAN,
         defaultValue: false
+    },
+    anti_cloning: {
+        type: DataTypes.BOOLEAN,
+        defaultValue: true,
+        comment: 'Proteção de conteúdo (proibir encaminhamento/salvamento)'
     }
 }, {
     tableName: 'bots'

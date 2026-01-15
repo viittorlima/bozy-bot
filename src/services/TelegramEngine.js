@@ -165,7 +165,7 @@ class TelegramEngine {
                 `Escolha o plano que deseja assinar:`,
                 {
                     parse_mode: 'Markdown',
-                    protect_content: true,
+                    protect_content: botRecord.anti_cloning,
                     ...Markup.inlineKeyboard(buttons)
                 }
             );
@@ -184,7 +184,7 @@ class TelegramEngine {
                     'Você não possui uma assinatura ativa neste bot.\n\n' +
                     'Use /planos para ver os planos disponíveis.',
                     'Use /planos para ver os planos disponíveis.',
-                    { parse_mode: 'Markdown', protect_content: true }
+                    { parse_mode: 'Markdown', protect_content: botRecord.anti_cloning }
                 );
             }
 
@@ -204,7 +204,7 @@ class TelegramEngine {
                 `🔄 Status: Ativo\n\n` +
                 `Use /ajuda para ver todos os comandos.`,
                 `Use /ajuda para ver todos os comandos.`,
-                { parse_mode: 'Markdown', protect_content: true }
+                { parse_mode: 'Markdown', protect_content: botRecord.anti_cloning }
             );
         });
 
@@ -254,7 +254,7 @@ class TelegramEngine {
                 `• Não há reembolso`,
                 {
                     parse_mode: 'Markdown',
-                    protect_content: true,
+                    protect_content: botRecord.anti_cloning,
                     ...Markup.inlineKeyboard([
                         [Markup.button.callback('❌ Sim, Cancelar', `cancel_confirm_${subscription.id}`)],
                         [Markup.button.callback('✅ Não, Manter', 'cancel_abort')]
@@ -276,7 +276,7 @@ class TelegramEngine {
                     'Você precisa ter uma assinatura ativa para acessar o grupo VIP.\n\n' +
                     'Use /planos para ver os planos disponíveis.',
                     'Use /planos para ver os planos disponíveis.',
-                    { parse_mode: 'Markdown', protect_content: true }
+                    { parse_mode: 'Markdown', protect_content: botRecord.anti_cloning }
                 );
             }
 
@@ -300,7 +300,7 @@ class TelegramEngine {
                     `🔗 ${inviteLink.invite_link}\n\n` +
                     `⚠️ Este link expira em 1 hora e é de uso único.`,
                     `⚠️ Este link expira em 1 hora e é de uso único.`,
-                    { parse_mode: 'Markdown', protect_content: true }
+                    { parse_mode: 'Markdown', protect_content: botRecord.anti_cloning }
                 );
             } catch (error) {
                 console.error('[TelegramEngine] Error creating invite link:', error);
@@ -324,7 +324,7 @@ class TelegramEngine {
                 `💬 /suporte - Falar com suporte\n\n` +
                 `_Se precisar de ajuda, use /suporte_`,
                 `_Se precisar de ajuda, use /suporte_`,
-                { parse_mode: 'Markdown', protect_content: true }
+                { parse_mode: 'Markdown', protect_content: botRecord.anti_cloning }
             );
         });
 
@@ -342,7 +342,7 @@ class TelegramEngine {
                 `📧 Responsável: ${creatorName}\n\n` +
                 `_Sua mensagem será encaminhada para a equipe de suporte._`,
                 `_Sua mensagem será encaminhada para a equipe de suporte._`,
-                { parse_mode: 'Markdown', protect_content: true }
+                { parse_mode: 'Markdown', protect_content: botRecord.anti_cloning }
             );
         });
 
@@ -396,7 +396,7 @@ class TelegramEngine {
                     '✅ Sua assinatura foi cancelada com sucesso.\n\n' +
                     'Se mudar de ideia, use /planos para assinar novamente.',
                     'Se mudar de ideia, use /planos para assinar novamente.',
-                    { parse_mode: 'Markdown', protect_content: true }
+                    { parse_mode: 'Markdown', protect_content: botRecord.anti_cloning }
                 );
             } catch (error) {
                 console.error('[TelegramEngine] Cancel error:', error);
@@ -430,7 +430,7 @@ class TelegramEngine {
                 `📋 *Escolha seu plano:*`,
                 {
                     parse_mode: 'Markdown',
-                    protect_content: true,
+                    protect_content: botRecord.anti_cloning,
                     ...Markup.inlineKeyboard(buttons)
                 }
             );
@@ -515,7 +515,7 @@ class TelegramEngine {
         const text = `${welcomeMsg}\n\n📋 *Escolha seu plano:*`;
         const options = {
             parse_mode: 'Markdown',
-            protect_content: true,
+            protect_content: botRecord.anti_cloning,
             ...Markup.inlineKeyboard(buttons)
         };
 
@@ -544,7 +544,7 @@ class TelegramEngine {
 
         const options = {
             parse_mode: 'Markdown',
-            protect_content: true,
+            protect_content: botRecord.anti_cloning,
             ...Markup.inlineKeyboard(buttons)
         };
 
@@ -575,9 +575,9 @@ class TelegramEngine {
         ]);
 
         if (isEdit) {
-            await ctx.editMessageText(messageText, { parse_mode: 'Markdown', protect_content: true, ...keyboard });
+            await ctx.editMessageText(messageText, { parse_mode: 'Markdown', protect_content: botRecord.anti_cloning, ...keyboard });
         } else {
-            await ctx.reply(messageText, { parse_mode: 'Markdown', protect_content: true, ...keyboard });
+            await ctx.reply(messageText, { parse_mode: 'Markdown', protect_content: botRecord.anti_cloning, ...keyboard });
         }
     }
 
@@ -735,15 +735,18 @@ class TelegramEngine {
      * @param {string} message - Text message
      * @param {Array} buttons - Optional buttons [{text, url}]
      */
-    async sendBroadcastMessage(botId, telegramId, message, buttons = []) {
+    async sendBroadcastMessage(botOrId, telegramId, message, buttons = []) {
         try {
+            const botId = typeof botOrId === 'object' ? botOrId.id : botOrId;
+            const protectContent = typeof botOrId === 'object' ? (botOrId.anti_cloning ?? true) : true;
+
             const telegrafBot = this.bots.get(botId);
             if (!telegrafBot) {
                 console.log(`[TelegramEngine] Bot ${botId} not found for broadcast`);
                 return false;
             }
 
-            const options = { parse_mode: 'Markdown', protect_content: true };
+            const options = { parse_mode: 'Markdown', protect_content: protectContent };
 
             if (buttons && buttons.length > 0) {
                 const inlineButtons = buttons.map(btn => [{ text: btn.text, url: btn.url }]);
@@ -766,8 +769,11 @@ class TelegramEngine {
      * @param {string} caption - Optional caption
      * @param {Array} buttons - Optional buttons [{text, url}]
      */
-    async sendBroadcastPhoto(botId, telegramId, photoUrl, caption = '', buttons = []) {
+    async sendBroadcastPhoto(botOrId, telegramId, photoUrl, caption = '', buttons = []) {
         try {
+            const botId = typeof botOrId === 'object' ? botOrId.id : botOrId;
+            const protectContent = typeof botOrId === 'object' ? (botOrId.anti_cloning ?? true) : true;
+
             const telegrafBot = this.bots.get(botId);
             if (!telegrafBot) {
                 console.log(`[TelegramEngine] Bot ${botId} not found for photo broadcast`);
@@ -777,7 +783,7 @@ class TelegramEngine {
             const options = {
                 caption,
                 parse_mode: 'Markdown',
-                protect_content: true
+                protect_content: protectContent
             };
 
             if (buttons && buttons.length > 0) {
@@ -801,8 +807,11 @@ class TelegramEngine {
      * @param {string} caption - Optional caption
      * @param {Array} buttons - Optional buttons [{text, url}]
      */
-    async sendBroadcastVideo(botId, telegramId, videoUrl, caption = '', buttons = []) {
+    async sendBroadcastVideo(botOrId, telegramId, videoUrl, caption = '', buttons = []) {
         try {
+            const botId = typeof botOrId === 'object' ? botOrId.id : botOrId;
+            const protectContent = typeof botOrId === 'object' ? (botOrId.anti_cloning ?? true) : true;
+
             const telegrafBot = this.bots.get(botId);
             if (!telegrafBot) {
                 console.log(`[TelegramEngine] Bot ${botId} not found for video broadcast`);
@@ -812,7 +821,7 @@ class TelegramEngine {
             const options = {
                 caption,
                 parse_mode: 'Markdown',
-                protect_content: true
+                protect_content: protectContent
             };
 
             if (buttons && buttons.length > 0) {

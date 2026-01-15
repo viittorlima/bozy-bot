@@ -142,7 +142,7 @@ User.prototype.validatePassword = async function (password) {
 User.prototype.toJSON = function () {
     const values = { ...this.get() };
     delete values.password_hash;
-    delete values.gateway_api_token;
+    // Keep gateway_api_token visible for the user to edit their settings
     return values;
 };
 

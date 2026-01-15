@@ -39,11 +39,11 @@ class BroadcastController {
                     let success = false;
 
                     if (type === 'photo' && media_url) {
-                        success = await TelegramEngine.sendBroadcastPhoto(bot.id, telegramId, media_url, message, buttons);
+                        success = await TelegramEngine.sendBroadcastPhoto(bot, telegramId, media_url, message, buttons);
                     } else if (type === 'video' && media_url) {
-                        success = await TelegramEngine.sendBroadcastVideo(bot.id, telegramId, media_url, message, buttons);
+                        success = await TelegramEngine.sendBroadcastVideo(bot, telegramId, media_url, message, buttons);
                     } else {
-                        success = await TelegramEngine.sendBroadcastMessage(bot.id, telegramId, message, buttons);
+                        success = await TelegramEngine.sendBroadcastMessage(bot, telegramId, message, buttons);
                     }
 
                     if (success) totalSent++;
@@ -122,11 +122,11 @@ class BroadcastController {
                     let success = false;
 
                     if (type === 'photo' && media_url) {
-                        success = await TelegramEngine.sendBroadcastPhoto(bot.id, telegramId, media_url, message, buttons);
+                        success = await TelegramEngine.sendBroadcastPhoto(bot, telegramId, media_url, message, buttons);
                     } else if (type === 'video' && media_url) {
-                        success = await TelegramEngine.sendBroadcastVideo(bot.id, telegramId, media_url, message, buttons);
+                        success = await TelegramEngine.sendBroadcastVideo(bot, telegramId, media_url, message, buttons);
                     } else {
-                        success = await TelegramEngine.sendBroadcastMessage(bot.id, telegramId, message, buttons);
+                        success = await TelegramEngine.sendBroadcastMessage(bot, telegramId, message, buttons);
                     }
 
                     if (success) totalSent++;

@@ -22,11 +22,12 @@ class BotController {
                 order: [['created_at', 'DESC']]
             });
 
-            const user = await User.findByPk(req.userId, { attributes: ['gateway_api_token'] });
+            const user = await User.findByPk(req.userId, { attributes: ['gateway_api_token', 'gateway_preference'] });
 
             res.json({
                 bots,
-                hasGateway: !!user?.gateway_api_token
+                hasGateway: !!user?.gateway_api_token,
+                gatewayName: user?.gateway_preference ? user.gateway_preference.charAt(0).toUpperCase() + user.gateway_preference.slice(1) : null
             });
         } catch (error) {
             console.error('[BotController] List error:', error);
@@ -113,7 +114,8 @@ class BotController {
                 welcomeMessage, welcome_message,
                 requestMediaOnStart, request_media_on_start,
                 channelId, channel_id,
-                status
+                status,
+                antiCloning, anti_cloning
             } = req.body;
 
             const bot = await Bot.findOne({
@@ -129,7 +131,8 @@ class BotController {
                 welcome_message: welcomeMessage ?? welcome_message ?? bot.welcome_message,
                 request_media_on_start: requestMediaOnStart ?? request_media_on_start ?? bot.request_media_on_start,
                 channel_id: channelId ?? channel_id ?? bot.channel_id,
-                status: status ?? bot.status
+                status: status ?? bot.status,
+                anti_cloning: antiCloning ?? anti_cloning ?? bot.anti_cloning
             });
 
             // Re-register if status changed
