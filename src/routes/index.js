@@ -339,10 +339,17 @@ router.get('/admin/settings', authMiddleware, adminMiddleware, async (req, res) 
         });
 
         res.json({
-            platformFee: parseFloat(settingsObj.platformFee || '10'),
             fixed_fee_amount: parseFloat(settingsObj.fixed_fee_amount || '0.55'),
             gateway: settingsObj.gateway || 'asaas',
             walletId: settingsObj.walletId || '',
+            // PushinPay
+            pushinpay_api_token: settingsObj.pushinpay_api_token || '',
+            // Asaas
+            asaas_api_key: settingsObj.asaas_api_key || '',
+            asaas_webhook_token: settingsObj.asaas_webhook_token || '',
+            // Mercado Pago
+            mp_access_token: settingsObj.mp_access_token || '',
+            mp_public_key: settingsObj.mp_public_key || '',
             // SyncPay
             syncpay_api_key: settingsObj.syncpay_api_key || '',
             syncpay_platform_recipient_id: settingsObj.syncpay_platform_recipient_id || '',
@@ -354,7 +361,7 @@ router.get('/admin/settings', authMiddleware, adminMiddleware, async (req, res) 
     } catch (error) {
         // Settings table might not exist yet
         res.json({
-            platformFee: 10,
+            fixed_fee_amount: 0.55,
             gateway: 'asaas',
             walletId: ''
         });
@@ -368,7 +375,9 @@ router.put('/admin/settings', authMiddleware, adminMiddleware, async (req, res) 
     const {
         siteName, siteUrl, supportEmail, platformChannelUsername,
         promotionContactLink, supportTelegramLink, enableRegistration,
-        requireEmailVerification, maintenanceMode, platformFee, fixed_fee_amount, gateway, walletId,
+        requireEmailVerification, maintenanceMode, fixed_fee_amount, gateway, walletId,
+        pushinpay_api_token, asaas_api_key, asaas_webhook_token,
+        mp_access_token, mp_public_key,
         syncpay_api_key, syncpay_platform_recipient_id, syncpay_default_recipient_id,
         paradisepag_public_key, paradisepag_secret_key
     } = req.body;
@@ -384,14 +393,26 @@ router.put('/admin/settings', authMiddleware, adminMiddleware, async (req, res) 
         if (enableRegistration !== undefined) await Setting.upsert({ key: 'enableRegistration', value: String(enableRegistration) });
         if (requireEmailVerification !== undefined) await Setting.upsert({ key: 'requireEmailVerification', value: String(requireEmailVerification) });
         if (maintenanceMode !== undefined) await Setting.upsert({ key: 'maintenanceMode', value: String(maintenanceMode) });
-        if (platformFee !== undefined) await Setting.upsert({ key: 'platformFee', value: String(platformFee) });
         if (fixed_fee_amount !== undefined) await Setting.upsert({ key: 'fixed_fee_amount', value: String(fixed_fee_amount) });
         if (gateway !== undefined) await Setting.upsert({ key: 'gateway', value: gateway });
         if (walletId !== undefined) await Setting.upsert({ key: 'walletId', value: walletId });
+
+        // PushinPay
+        if (pushinpay_api_token !== undefined) await Setting.upsert({ key: 'pushinpay_api_token', value: pushinpay_api_token });
+
+        // Asaas
+        if (asaas_api_key !== undefined) await Setting.upsert({ key: 'asaas_api_key', value: asaas_api_key });
+        if (asaas_webhook_token !== undefined) await Setting.upsert({ key: 'asaas_webhook_token', value: asaas_webhook_token });
+
+        // Mercado Pago
+        if (mp_access_token !== undefined) await Setting.upsert({ key: 'mp_access_token', value: mp_access_token });
+        if (mp_public_key !== undefined) await Setting.upsert({ key: 'mp_public_key', value: mp_public_key });
+
         // SyncPay
         if (syncpay_api_key !== undefined) await Setting.upsert({ key: 'syncpay_api_key', value: syncpay_api_key });
         if (syncpay_platform_recipient_id !== undefined) await Setting.upsert({ key: 'syncpay_platform_recipient_id', value: syncpay_platform_recipient_id });
         if (syncpay_default_recipient_id !== undefined) await Setting.upsert({ key: 'syncpay_default_recipient_id', value: syncpay_default_recipient_id });
+
         // ParadisePag
         if (paradisepag_public_key !== undefined) await Setting.upsert({ key: 'paradisepag_public_key', value: paradisepag_public_key });
         if (paradisepag_secret_key !== undefined) await Setting.upsert({ key: 'paradisepag_secret_key', value: paradisepag_secret_key });
