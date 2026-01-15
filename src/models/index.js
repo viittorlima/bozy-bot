@@ -33,7 +33,8 @@ BroadcastItem.belongsTo(Broadcast, { foreignKey: 'broadcast_id', as: 'broadcast'
 
 async function syncDatabase(force = false) {
     try {
-        await sequelize.sync({ force });
+        // Use alter: true to update tables without dropping them
+        await sequelize.sync({ force, alter: !force });
         console.log('✅ Database synchronized successfully.');
     } catch (error) {
         console.error('❌ Error synchronizing database:', error);
