@@ -1,5 +1,6 @@
 const axios = require('axios');
 const config = require('../../config');
+const { Setting } = require('../../models');
 
 /**
  * Asaas Payment Service with Dynamic Credentials (BYOK - Bring Your Own Key)
@@ -28,12 +29,19 @@ class AsaasService {
     }
 
     /**
-     * Calculate Split amounts
-     * O criador recebe o NET, a plataforma recebe a FEE
-     */
-    calculateSplit(grossAmount) {
-        const platformFee = (grossAmount * config.platformFeePercent) / 100;
-        const creatorNet = grossAmount - platformFee;
+         * Calculate Split amounts
+         * O criador recebe o NET, a plataforma recebe a FEE
+         */
+    async calculateSplit(grossAmount) {
+        let platformFee = 0.55; // default fixed fee
+        try {
+            const setting = await Setting.findOne({ where: { key: 'fixed_fee_amount' } });
+            if (setting) platformFee = parseFloat(setting.value);
+        } catch (e) {
+            console.error('Error fetching fixed fee', e);
+        }
+
+        const creatorNet = Math.max(0, grossAmount - platformFee);
 
         return {
             gross: parseFloat(grossAmount.toFixed(2)),

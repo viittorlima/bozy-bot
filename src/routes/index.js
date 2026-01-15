@@ -10,6 +10,7 @@ const PlanController = require('../controllers/PlanController');
 const CheckoutController = require('../controllers/CheckoutController');
 const WebhookController = require('../controllers/WebhookController');
 const StatsController = require('../controllers/StatsController');
+const BroadcastController = require('../controllers/BroadcastController');
 
 // ============================================
 // PUBLIC ROUTES
@@ -159,6 +160,8 @@ router.get('/bots/public/:botUsername', async (req, res) => {
 router.post('/webhooks/asaas', WebhookController.handleAsaas);
 router.post('/webhooks/mercadopago', WebhookController.handleMercadoPago);
 router.post('/webhooks/pushinpay', WebhookController.handlePushinPay);
+router.post('/webhooks/syncpay', WebhookController.handleSyncPay);
+router.post('/webhooks/paradisepag', WebhookController.handleParadisePag);
 router.post('/webhooks/telegram/:token', WebhookController.handleTelegram);
 
 // Stripe needs raw body, handled separately in app.js
@@ -184,6 +187,7 @@ router.put('/auth/password', authMiddleware, AuthController.changePassword);
 
 // Stats
 router.get('/stats', authMiddleware, StatsController.getCreatorStats);
+router.get('/stats/ranking', authMiddleware, StatsController.getRanking);
 
 // Bots
 router.get('/bots', authMiddleware, BotController.list);
@@ -336,8 +340,16 @@ router.get('/admin/settings', authMiddleware, adminMiddleware, async (req, res) 
 
         res.json({
             platformFee: parseFloat(settingsObj.platformFee || '10'),
+            fixed_fee_amount: parseFloat(settingsObj.fixed_fee_amount || '0.55'),
             gateway: settingsObj.gateway || 'asaas',
-            walletId: settingsObj.walletId || ''
+            walletId: settingsObj.walletId || '',
+            // SyncPay
+            syncpay_api_key: settingsObj.syncpay_api_key || '',
+            syncpay_platform_recipient_id: settingsObj.syncpay_platform_recipient_id || '',
+            syncpay_default_recipient_id: settingsObj.syncpay_default_recipient_id || '',
+            // ParadisePag
+            paradisepag_public_key: settingsObj.paradisepag_public_key || '',
+            paradisepag_secret_key: settingsObj.paradisepag_secret_key || ''
         });
     } catch (error) {
         // Settings table might not exist yet
@@ -356,7 +368,9 @@ router.put('/admin/settings', authMiddleware, adminMiddleware, async (req, res) 
     const {
         siteName, siteUrl, supportEmail, platformChannelUsername,
         promotionContactLink, supportTelegramLink, enableRegistration,
-        requireEmailVerification, maintenanceMode, platformFee, gateway, walletId
+        requireEmailVerification, maintenanceMode, platformFee, fixed_fee_amount, gateway, walletId,
+        syncpay_api_key, syncpay_platform_recipient_id, syncpay_default_recipient_id,
+        paradisepag_public_key, paradisepag_secret_key
     } = req.body;
 
     try {
@@ -371,8 +385,16 @@ router.put('/admin/settings', authMiddleware, adminMiddleware, async (req, res) 
         if (requireEmailVerification !== undefined) await Setting.upsert({ key: 'requireEmailVerification', value: String(requireEmailVerification) });
         if (maintenanceMode !== undefined) await Setting.upsert({ key: 'maintenanceMode', value: String(maintenanceMode) });
         if (platformFee !== undefined) await Setting.upsert({ key: 'platformFee', value: String(platformFee) });
+        if (fixed_fee_amount !== undefined) await Setting.upsert({ key: 'fixed_fee_amount', value: String(fixed_fee_amount) });
         if (gateway !== undefined) await Setting.upsert({ key: 'gateway', value: gateway });
         if (walletId !== undefined) await Setting.upsert({ key: 'walletId', value: walletId });
+        // SyncPay
+        if (syncpay_api_key !== undefined) await Setting.upsert({ key: 'syncpay_api_key', value: syncpay_api_key });
+        if (syncpay_platform_recipient_id !== undefined) await Setting.upsert({ key: 'syncpay_platform_recipient_id', value: syncpay_platform_recipient_id });
+        if (syncpay_default_recipient_id !== undefined) await Setting.upsert({ key: 'syncpay_default_recipient_id', value: syncpay_default_recipient_id });
+        // ParadisePag
+        if (paradisepag_public_key !== undefined) await Setting.upsert({ key: 'paradisepag_public_key', value: paradisepag_public_key });
+        if (paradisepag_secret_key !== undefined) await Setting.upsert({ key: 'paradisepag_secret_key', value: paradisepag_secret_key });
 
         res.json({ message: 'Configurações salvas' });
     } catch (error) {
@@ -417,6 +439,12 @@ router.put('/admin/legal', authMiddleware, adminMiddleware, async (req, res) => 
         res.status(500).json({ error: 'Erro ao salvar' });
     }
 });
+
+// Admin: Broadcasts (Mailing)
+router.post('/admin/broadcasts', authMiddleware, adminMiddleware, BroadcastController.create);
+router.get('/admin/broadcasts', authMiddleware, adminMiddleware, BroadcastController.list);
+router.post('/admin/broadcasts/:id/send', authMiddleware, adminMiddleware, BroadcastController.send);
+router.delete('/admin/broadcasts/:id', authMiddleware, adminMiddleware, BroadcastController.delete);
 
 module.exports = router;
 

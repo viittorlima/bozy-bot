@@ -4,6 +4,8 @@ const AsaasService = require('../services/payment/AsaasService');
 const MercadoPagoService = require('../services/payment/MercadoPagoService');
 const StripeService = require('../services/payment/StripeService');
 const PushinPayService = require('../services/payment/PushinPayService');
+const SyncPayService = require('../services/payment/SyncPayService');
+const ParadisePagService = require('../services/payment/ParadisePagService');
 
 /**
  * Webhook Controller
@@ -209,6 +211,38 @@ class WebhookController {
         } catch (error) {
             console.error('[Webhook] Telegram error:', error);
             res.sendStatus(200); // Always return 200 to Telegram
+        }
+    }
+
+    /**
+     * POST /api/webhooks/syncpay
+     * Handle SyncPay webhooks
+     */
+    async handleSyncPay(req, res) {
+        try {
+            console.log('[Webhook] SyncPay event:', JSON.stringify(req.body, null, 2));
+
+            const result = await SyncPayService.handleWebhook(req);
+            res.status(200).json(result);
+        } catch (error) {
+            console.error('[Webhook] SyncPay error:', error);
+            res.sendStatus(500);
+        }
+    }
+
+    /**
+     * POST /api/webhooks/paradisepag
+     * Handle ParadisePag webhooks
+     */
+    async handleParadisePag(req, res) {
+        try {
+            console.log('[Webhook] ParadisePag event:', JSON.stringify(req.body, null, 2));
+
+            const result = await ParadisePagService.handleWebhook(req);
+            res.status(200).json(result);
+        } catch (error) {
+            console.error('[Webhook] ParadisePag error:', error);
+            res.sendStatus(500);
         }
     }
 

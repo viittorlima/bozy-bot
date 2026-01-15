@@ -4,6 +4,7 @@ const MercadoPagoService = require('../services/payment/MercadoPagoService');
 const StripeService = require('../services/payment/StripeService');
 const PushinPayService = require('../services/payment/PushinPayService');
 const config = require('../config');
+const PaymentService = require('../services/payment');
 
 /**
  * Checkout Controller
@@ -55,16 +56,9 @@ class CheckoutController {
             const creatorApiKey = creator.gateway_api_token;
 
             // Calculate Split
-            const platformFeePercent = config.platformFeePercent || 10;
-            const grossAmount = parseFloat(plan.price);
-            const platformFee = (grossAmount * platformFeePercent) / 100;
-            const creatorNet = grossAmount - platformFee;
-
-            const splitAmounts = {
-                gross: parseFloat(grossAmount.toFixed(2)),
-                platformFee: parseFloat(platformFee.toFixed(2)),
-                creatorNet: parseFloat(creatorNet.toFixed(2))
-            };
+            // Uses fixed fee from PaymentService
+            const splitAmounts = await PaymentService.calculateSplit(parseFloat(plan.price));
+            const grossAmount = splitAmounts.gross;
 
             // Create external reference for tracking
             const externalReference = `${plan.id}_${telegramId || 'web'}_${Date.now()}`;

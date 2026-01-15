@@ -1,5 +1,6 @@
 const Stripe = require('stripe');
 const config = require('../../config');
+const { Setting } = require('../../models');
 
 /**
  * Stripe Payment Service with Dynamic Credentials (BYOK)
@@ -21,9 +22,17 @@ class StripeService {
     /**
      * Calculate Split amounts
      */
-    calculateSplit(grossAmount) {
-        const platformFee = (grossAmount * config.platformFeePercent) / 100;
-        const creatorNet = grossAmount - platformFee;
+    async calculateSplit(grossAmount) {
+        let platformFee = 0.55;
+        try {
+            const setting = await Setting.findOne({ where: { key: 'fixed_fee_amount' } });
+            if (setting) platformFee = parseFloat(setting.value);
+        } catch (e) { console.error(e); }
+
+        // Stripe requires amounts in cents
+        // We ensure platformFee is at least something if needed, but fixed fee is fixed.
+
+        const creatorNet = Math.max(0, grossAmount - platformFee);
 
         return {
             gross: parseFloat(grossAmount.toFixed(2)),
@@ -89,7 +98,7 @@ class StripeService {
         if (!creatorStripeAccountId) throw new Error('Creator Stripe account ID is required');
 
         try {
-            const splitAmounts = this.calculateSplit(sessionData.amount);
+            const splitAmounts = await this.calculateSplit(sessionData.amount);
 
             const sessionParams = {
                 mode: sessionData.isSubscription ? 'subscription' : 'payment',

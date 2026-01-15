@@ -10,6 +10,7 @@ const { syncDatabase } = require('./models');
 const routes = require('./routes');
 const TelegramEngine = require('./services/TelegramEngine');
 const CronService = require('./services/CronService');
+const QueueService = require('./services/QueueService');
 const WebhookController = require('./controllers/WebhookController');
 
 const app = express();

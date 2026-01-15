@@ -1,5 +1,6 @@
 const mercadopago = require('mercadopago');
 const config = require('../../config');
+const { Setting } = require('../../models');
 
 /**
  * Mercado Pago Payment Service with Dynamic Credentials (BYOK)
@@ -9,12 +10,19 @@ const config = require('../../config');
  * - marketplace_fee envia a comissão para a PLATAFORMA
  */
 class MercadoPagoService {
+
+
     /**
      * Calculate Split amounts
      */
-    calculateSplit(grossAmount) {
-        const platformFee = (grossAmount * config.platformFeePercent) / 100;
-        const creatorNet = grossAmount - platformFee;
+    async calculateSplit(grossAmount) {
+        let platformFee = 0.55;
+        try {
+            const setting = await Setting.findOne({ where: { key: 'fixed_fee_amount' } });
+            if (setting) platformFee = parseFloat(setting.value);
+        } catch (e) { }
+
+        const creatorNet = Math.max(0, grossAmount - platformFee);
 
         return {
             gross: parseFloat(grossAmount.toFixed(2)),
@@ -52,7 +60,7 @@ class MercadoPagoService {
         // Configura com token do criador
         this.configureWithToken(creatorAccessToken);
 
-        const splitAmounts = this.calculateSplit(paymentData.amount);
+        const splitAmounts = await this.calculateSplit(paymentData.amount);
 
         try {
             const preference = {
@@ -106,7 +114,7 @@ class MercadoPagoService {
     async createSubscription(creatorAccessToken, subscriptionData) {
         this.configureWithToken(creatorAccessToken);
 
-        const splitAmounts = this.calculateSplit(subscriptionData.amount);
+        const splitAmounts = await this.calculateSplit(subscriptionData.amount);
 
         try {
             const preapproval = {

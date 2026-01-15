@@ -5,6 +5,8 @@ const Plan = require('./Plan');
 const Subscription = require('./Subscription');
 const Transaction = require('./Transaction');
 const Setting = require('./Setting');
+const Broadcast = require('./Broadcast');
+const BroadcastItem = require('./BroadcastItem');
 
 // Define Associations
 
@@ -25,6 +27,10 @@ Subscription.hasMany(Transaction, { foreignKey: 'subscription_id', as: 'transact
 Transaction.belongsTo(Subscription, { foreignKey: 'subscription_id', as: 'subscription' });
 
 // Sync all models
+// Broadcast -> BroadcastItems (1:N)
+Broadcast.hasMany(BroadcastItem, { foreignKey: 'broadcast_id', as: 'items' });
+BroadcastItem.belongsTo(Broadcast, { foreignKey: 'broadcast_id', as: 'broadcast' });
+
 async function syncDatabase(force = false) {
     try {
         await sequelize.sync({ force });
@@ -43,6 +49,8 @@ module.exports = {
     Subscription,
     Transaction,
     Setting,
+    Broadcast,
+    BroadcastItem,
     syncDatabase
 };
 

@@ -222,6 +222,74 @@ class StatsController {
             res.status(500).json({ error: 'Erro ao buscar estatísticas' });
         }
     }
+
+    /**
+     * GET /api/stats/ranking
+     * Get updated monthly ranking
+     */
+    async getRanking(req, res) {
+        try {
+            const startOfMonth = new Date();
+            startOfMonth.setDate(1);
+            startOfMonth.setHours(0, 0, 0, 0);
+
+            // We need to sum sales by creator
+            // Transaction -> Subscription -> Plan -> Bot -> User (Creator)
+            // But Transaction doesn't have direct link to User. 
+            // We can fetch all transactions of the month and aggregate in JS or use complex query.
+            // Complex query is better.
+
+            // Since we can't easily do deep nested aggregation with simple Sequelize methods, 
+            // let's fetch transactions with includes and aggregate manually for safety and speed on small datasets.
+            // If dataset is huge, raw query would be better.
+
+            const transactions = await Transaction.findAll({
+                where: {
+                    status: 'confirmed',
+                    paid_at: { [Op.gte]: startOfMonth }
+                },
+                include: [{
+                    association: 'subscription',
+                    include: [{
+                        association: 'plan',
+                        include: [{
+                            association: 'bot',
+                            include: ['owner']
+                        }]
+                    }]
+                }]
+            });
+
+            const rankingMap = new Map(); // creatorId -> { user, total }
+
+            for (const t of transactions) {
+                const creator = t.subscription?.plan?.bot?.owner;
+                if (!creator) continue;
+
+                if (!rankingMap.has(creator.id)) {
+                    rankingMap.set(creator.id, {
+                        id: creator.id,
+                        name: creator.name,
+                        email: creator.email, // using email as fallback for avatar seed
+                        total: 0
+                    });
+                }
+
+                rankingMap.get(creator.id).total += parseFloat(t.amount_net_creator || 0);
+            }
+
+            // Convert to array and sort
+            const ranking = Array.from(rankingMap.values())
+                .sort((a, b) => b.total - a.total)
+                .slice(0, 10); // Top 10
+
+            res.json({ ranking });
+
+        } catch (error) {
+            console.error('[StatsController] Ranking error:', error);
+            res.status(500).json({ error: 'Erro ao buscar ranking' });
+        }
+    }
 }
 
 module.exports = new StatsController();

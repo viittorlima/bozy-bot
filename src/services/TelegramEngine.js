@@ -165,6 +165,7 @@ class TelegramEngine {
                 `Escolha o plano que deseja assinar:`,
                 {
                     parse_mode: 'Markdown',
+                    protect_content: true,
                     ...Markup.inlineKeyboard(buttons)
                 }
             );
@@ -182,7 +183,8 @@ class TelegramEngine {
                     '❌ *Sem Assinatura Ativa*\n\n' +
                     'Você não possui uma assinatura ativa neste bot.\n\n' +
                     'Use /planos para ver os planos disponíveis.',
-                    { parse_mode: 'Markdown' }
+                    'Use /planos para ver os planos disponíveis.',
+                    { parse_mode: 'Markdown', protect_content: true }
                 );
             }
 
@@ -201,7 +203,8 @@ class TelegramEngine {
                 `⏰ Dias restantes: ${daysLeft}\n` +
                 `🔄 Status: Ativo\n\n` +
                 `Use /ajuda para ver todos os comandos.`,
-                { parse_mode: 'Markdown' }
+                `Use /ajuda para ver todos os comandos.`,
+                { parse_mode: 'Markdown', protect_content: true }
             );
         });
 
@@ -251,6 +254,7 @@ class TelegramEngine {
                 `• Não há reembolso`,
                 {
                     parse_mode: 'Markdown',
+                    protect_content: true,
                     ...Markup.inlineKeyboard([
                         [Markup.button.callback('❌ Sim, Cancelar', `cancel_confirm_${subscription.id}`)],
                         [Markup.button.callback('✅ Não, Manter', 'cancel_abort')]
@@ -271,7 +275,8 @@ class TelegramEngine {
                     '❌ *Acesso Negado*\n\n' +
                     'Você precisa ter uma assinatura ativa para acessar o grupo VIP.\n\n' +
                     'Use /planos para ver os planos disponíveis.',
-                    { parse_mode: 'Markdown' }
+                    'Use /planos para ver os planos disponíveis.',
+                    { parse_mode: 'Markdown', protect_content: true }
                 );
             }
 
@@ -294,7 +299,8 @@ class TelegramEngine {
                     `Clique no link abaixo para entrar no grupo:\n\n` +
                     `🔗 ${inviteLink.invite_link}\n\n` +
                     `⚠️ Este link expira em 1 hora e é de uso único.`,
-                    { parse_mode: 'Markdown' }
+                    `⚠️ Este link expira em 1 hora e é de uso único.`,
+                    { parse_mode: 'Markdown', protect_content: true }
                 );
             } catch (error) {
                 console.error('[TelegramEngine] Error creating invite link:', error);
@@ -317,7 +323,8 @@ class TelegramEngine {
                 `📖 /ajuda - Esta mensagem\n` +
                 `💬 /suporte - Falar com suporte\n\n` +
                 `_Se precisar de ajuda, use /suporte_`,
-                { parse_mode: 'Markdown' }
+                `_Se precisar de ajuda, use /suporte_`,
+                { parse_mode: 'Markdown', protect_content: true }
             );
         });
 
@@ -334,7 +341,8 @@ class TelegramEngine {
                 `Para falar com o suporte, envie uma mensagem descrevendo seu problema.\n\n` +
                 `📧 Responsável: ${creatorName}\n\n` +
                 `_Sua mensagem será encaminhada para a equipe de suporte._`,
-                { parse_mode: 'Markdown' }
+                `_Sua mensagem será encaminhada para a equipe de suporte._`,
+                { parse_mode: 'Markdown', protect_content: true }
             );
         });
 
@@ -387,7 +395,8 @@ class TelegramEngine {
                 await ctx.editMessageText(
                     '✅ Sua assinatura foi cancelada com sucesso.\n\n' +
                     'Se mudar de ideia, use /planos para assinar novamente.',
-                    { parse_mode: 'Markdown' }
+                    'Se mudar de ideia, use /planos para assinar novamente.',
+                    { parse_mode: 'Markdown', protect_content: true }
                 );
             } catch (error) {
                 console.error('[TelegramEngine] Cancel error:', error);
@@ -421,6 +430,7 @@ class TelegramEngine {
                 `📋 *Escolha seu plano:*`,
                 {
                     parse_mode: 'Markdown',
+                    protect_content: true,
                     ...Markup.inlineKeyboard(buttons)
                 }
             );
@@ -505,6 +515,7 @@ class TelegramEngine {
         const text = `${welcomeMsg}\n\n📋 *Escolha seu plano:*`;
         const options = {
             parse_mode: 'Markdown',
+            protect_content: true,
             ...Markup.inlineKeyboard(buttons)
         };
 
@@ -533,6 +544,7 @@ class TelegramEngine {
 
         const options = {
             parse_mode: 'Markdown',
+            protect_content: true,
             ...Markup.inlineKeyboard(buttons)
         };
 
@@ -563,9 +575,9 @@ class TelegramEngine {
         ]);
 
         if (isEdit) {
-            await ctx.editMessageText(messageText, { parse_mode: 'Markdown', ...keyboard });
+            await ctx.editMessageText(messageText, { parse_mode: 'Markdown', protect_content: true, ...keyboard });
         } else {
-            await ctx.reply(messageText, { parse_mode: 'Markdown', ...keyboard });
+            await ctx.reply(messageText, { parse_mode: 'Markdown', protect_content: true, ...keyboard });
         }
     }
 
@@ -612,7 +624,7 @@ class TelegramEngine {
                 `Sua assinatura do plano *${plan.name}* foi ativada.\n\n` +
                 `📅 Válido até: ${expiresAt}\n\n` +
                 `Use /grupo para acessar o grupo VIP! 🚀`,
-                { parse_mode: 'Markdown' }
+                { parse_mode: 'Markdown', protect_content: true }
             );
 
             // Add user to VIP channel if configured
@@ -633,7 +645,7 @@ class TelegramEngine {
                     await telegrafBot.telegram.sendMessage(
                         subscription.user_telegram_id,
                         `🔗 *Acesse o grupo VIP:*\n\n${inviteLink.invite_link}`,
-                        { parse_mode: 'Markdown' }
+                        { parse_mode: 'Markdown', protect_content: true }
                     );
                 } catch (channelError) {
                     console.error('[TelegramEngine] Error adding to channel:', channelError);
@@ -663,7 +675,8 @@ class TelegramEngine {
                 `⚠️ *Assinatura Expirada*\n\n` +
                 `Sua assinatura do plano *${plan.name}* expirou.\n\n` +
                 `Para continuar tendo acesso ao grupo VIP, use /renovar`,
-                { parse_mode: 'Markdown' }
+                `Para continuar tendo acesso ao grupo VIP, use /renovar`,
+                { parse_mode: 'Markdown', protect_content: true }
             );
 
             // Remove from VIP channel
@@ -707,7 +720,8 @@ class TelegramEngine {
                 `Sua assinatura do plano *${plan.name}* expira em ${daysLeft} dia(s).\n\n` +
                 `Renove agora para não perder acesso ao grupo VIP!\n\n` +
                 `Use /renovar para renovar sua assinatura.`,
-                { parse_mode: 'Markdown' }
+                `Use /renovar para renovar sua assinatura.`,
+                { parse_mode: 'Markdown', protect_content: true }
             );
         } catch (error) {
             console.error('[TelegramEngine] Error sending reminder:', error);
@@ -797,7 +811,7 @@ class TelegramEngine {
                     await telegrafBot.telegram.sendMessage(
                         subscription.user_telegram_id,
                         footer.trim(),
-                        { parse_mode: 'Markdown', disable_notification: true }
+                        { parse_mode: 'Markdown', disable_notification: true, protect_content: true }
                     );
                 } catch (sendError) {
                     // User may have blocked the bot, ignore

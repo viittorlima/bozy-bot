@@ -1,5 +1,6 @@
 const axios = require('axios');
 const config = require('../../config');
+const { Setting } = require('../../models');
 
 /**
  * PushinPay Payment Service
@@ -31,20 +32,26 @@ class PushinPayService {
         });
     }
 
+
+
     /**
      * Calculate Split amounts
      * O criador recebe o NET, a plataforma recebe a FEE
      */
-    calculateSplit(grossAmount) {
-        const platformFeePercent = config.platformFeePercent || 10;
-        const platformFee = (grossAmount * platformFeePercent) / 100;
-        const creatorNet = grossAmount - platformFee;
+    async calculateSplit(grossAmount) {
+        let platformFee = 0.55;
+        try {
+            const setting = await Setting.findOne({ where: { key: 'fixed_fee_amount' } });
+            if (setting) platformFee = parseFloat(setting.value);
+        } catch (e) { }
+
+        const creatorNet = Math.max(0, grossAmount - platformFee);
 
         return {
             gross: parseFloat(grossAmount.toFixed(2)),
             platformFee: parseFloat(platformFee.toFixed(2)),
             creatorNet: parseFloat(creatorNet.toFixed(2)),
-            platformFeePercent
+            isFixedFee: true
         };
     }
 
@@ -62,7 +69,7 @@ class PushinPayService {
         try {
             // Valor em centavos!
             const valueInCents = Math.round(paymentData.amount * 100);
-            const split = this.calculateSplit(paymentData.amount);
+            const split = await this.calculateSplit(paymentData.amount);
 
             const payload = {
                 value: valueInCents,
