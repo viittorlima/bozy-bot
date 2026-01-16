@@ -844,8 +844,9 @@ class TelegramEngine {
      */
     async getBotSubscribers(botId, filter = 'all') {
         try {
-            const whereClause = { bot_id: botId };
+            const whereClause = {};
 
+            // Filter by subscription status
             if (filter === 'active') {
                 whereClause.status = 'active';
                 whereClause.expires_at = { [Op.or]: [{ [Op.gt]: new Date() }, null] };
@@ -855,13 +856,22 @@ class TelegramEngine {
                 whereClause.status = 'pending';
             }
 
+            // Find subscriptions joining with Plan to filter by bot_id
             const subscriptions = await Subscription.findAll({
                 where: whereClause,
-                attributes: ['user_telegram_id'],
-                group: ['user_telegram_id']
+                include: [{
+                    association: 'plan',
+                    where: { bot_id: botId },
+                    required: true,
+                    attributes: [] // Don't need plan data
+                }],
+                attributes: ['user_telegram_id']
             });
 
-            return subscriptions.map(s => s.user_telegram_id);
+            // Dedup users (one user might have multiple subscriptions for same bot)
+            const uniqueIds = [...new Set(subscriptions.map(s => s.user_telegram_id))];
+
+            return uniqueIds;
         } catch (error) {
             console.error('[TelegramEngine] Error getting subscribers:', error);
             return [];
